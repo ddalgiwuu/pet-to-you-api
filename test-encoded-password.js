@@ -1,49 +1,31 @@
 // Test different password encodings
-const password = '***PASSWORD_REMOVED***';
-const encodedPassword = encodeURIComponent(password);
-
-console.log('Original password:', password);
-console.log('URL-encoded password:', encodedPassword);
-console.log('Are they different?', password !== encodedPassword);
-
-// Test connection with URL-encoded password
+require('dotenv').config();
 const mongoose = require('mongoose');
-const uriEncoded = `mongodb+srv://***USERNAME_REMOVED***:${encodedPassword}@n3rve-db.ie22loh.mongodb.net/pet-to-you?retryWrites=true&w=majority`;
 
-console.log('\nTesting with URL-encoded password...');
-mongoose.connect(uriEncoded, {
+const mongoUri = process.env.MONGODB_URI;
+
+if (!mongoUri) {
+  console.error('❌ MONGODB_URI is not defined in .env file');
+  process.exit(1);
+}
+
+console.log('Testing MongoDB connection with environment variable...');
+
+console.log('\nTesting connection...');
+mongoose.connect(mongoUri, {
   maxPoolSize: 10,
   minPoolSize: 2,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
 })
 .then(() => {
-  console.log('✅ Connection successful with encoded password');
+  console.log('✅ MongoDB connection successful');
+  console.log('Connected to database:', mongoose.connection.db.databaseName);
   mongoose.connection.close();
   process.exit(0);
 })
 .catch(err => {
-  console.error('❌ Connection failed with encoded password:', err.message);
-  
-  // Try alternative: maybe user permissions issue
-  console.log('\nTrying without database name specified...');
-  const uriNoDb = `mongodb+srv://***USERNAME_REMOVED***:${encodedPassword}@n3rve-db.ie22loh.mongodb.net/?retryWrites=true&w=majority`;
-  
-  return mongoose.connect(uriNoDb, {
-    maxPoolSize: 10,
-    minPoolSize: 2,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  });
-})
-.then(() => {
-  console.log('✅ Connection successful without database name');
-  console.log('Connected to:', mongoose.connection.db.databaseName || 'admin');
-  mongoose.connection.close();
-  process.exit(0);
-})
-.catch(err => {
-  console.error('❌ All connection attempts failed');
+  console.error('❌ MongoDB connection failed');
   console.error('Error code:', err.code);
   console.error('Error message:', err.message);
   process.exit(1);

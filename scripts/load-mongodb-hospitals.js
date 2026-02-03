@@ -2,6 +2,7 @@
  * Load Seoul Hospital CSV to MongoDB with coordinate conversion
  */
 
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const fs = require('fs');
 const Papa = require('papaparse');
@@ -21,7 +22,13 @@ function convertCoords(x, y) {
 }
 
 async function load() {
-  await mongoose.connect('mongodb+srv://***USERNAME_REMOVED***:***PASSWORD_REMOVED***@pettoyou.uq2lrlf.mongodb.net/pettoyou');
+  const mongoUri = process.env.MONGODB_URI;
+
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI is not defined in .env file');
+  }
+
+  await mongoose.connect(mongoUri);
   console.log('✅ MongoDB connected');
 
   const csv = fs.readFileSync(path.join(__dirname, '../data/서울동물병원데이터.csv'), 'utf-8');

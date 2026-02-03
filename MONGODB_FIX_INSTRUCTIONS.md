@@ -4,7 +4,7 @@
 MongoDB connection fails with: `bad auth : Authentication failed` (Error code 8000)
 
 ## Root Cause
-Invalid MongoDB Atlas credentials. The user `***USERNAME_REMOVED***` either:
+Invalid MongoDB Atlas credentials. The user `wonseok9706_db_user` either:
 - Doesn't exist in MongoDB Atlas
 - Has an incorrect password
 - Was deleted or disabled
@@ -16,7 +16,7 @@ Invalid MongoDB Atlas credentials. The user `***USERNAME_REMOVED***` either:
 1. Log into MongoDB Atlas: https://cloud.mongodb.com
 2. Select your project
 3. Navigate to: **Database Access** (left sidebar)
-4. Find user: `***USERNAME_REMOVED***`
+4. Find user: `wonseok9706_db_user`
 5. Click **Edit** button
 6. Click **Edit Password**
 7. Generate or set a new password (save it securely!)
@@ -29,7 +29,7 @@ Invalid MongoDB Atlas credentials. The user `***USERNAME_REMOVED***` either:
 3. Navigate to: **Database Access** (left sidebar)
 4. Click **Add New Database User**
 5. Set Authentication Method: **Password**
-6. Set username: `***USERNAME_REMOVED***` (or any new username)
+6. Set username: `wonseok9706_db_user` (or any new username)
 7. Generate or set a password (save it securely!)
 8. Set Database User Privileges:
    - Built-in Role: **Read and write to any database**
@@ -53,7 +53,7 @@ After getting the correct password from MongoDB Atlas, update your .env file:
 # = → %3D
 # + → %2B
 
-MONGODB_URI=mongodb+srv://***USERNAME_REMOVED***:YOUR_NEW_PASSWORD@n3rve-db.ie22loh.mongodb.net/pet-to-you?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://wonseok9706_db_user:YOUR_NEW_PASSWORD@n3rve-db.ie22loh.mongodb.net/pet-to-you?retryWrites=true&w=majority
 ```
 
 ### Step 4: Test Connection
@@ -98,5 +98,5 @@ Look for: `✅ MongoDB connection successful` in logs
 
 - Cluster: `n3rve-db.ie22loh.mongodb.net`
 - Database: `pet-to-you`
-- Username: `***USERNAME_REMOVED***`
+- Username: `wonseok9706_db_user`
 - Whitelisted IP: `121.162.140.75`

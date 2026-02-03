@@ -3,6 +3,10 @@
  * Bypasses PostgreSQL issues
  */
 
+import { config } from 'dotenv';
+import { join } from 'path';
+config({ path: join(__dirname, '../.env') });
+
 import { connect, connection } from 'mongoose';
 import * as fs from 'fs';
 import * as Papa from 'papaparse';
@@ -10,8 +14,13 @@ import * as path from 'path';
 
 async function loadHospitals() {
   try {
-    // Connect to MongoDB
-    const mongoUri = 'mongodb+srv://***USERNAME_REMOVED***:***PASSWORD_REMOVED***@pettoyou.uq2lrlf.mongodb.net/pettoyou?appName=pettoyou';
+    // Connect to MongoDB using environment variable
+    const mongoUri = process.env.MONGODB_URI;
+
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI is not defined in .env file');
+    }
+
     await connect(mongoUri);
     console.log('✅ Connected to MongoDB');
 
