@@ -1,6 +1,12 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 
-const uri = 'mongodb+srv://wonseok9706_db_user:1EY0d2oKTCn2o5tp@n3rve-db.ie22loh.mongodb.net/pet-to-you?retryWrites=true&w=majority';
+const uri = process.env.MONGODB_URI;
+
+if (!uri) {
+  console.error('❌ MONGODB_URI is not defined in .env file');
+  process.exit(1);
+}
 
 console.log('Testing MongoDB connection...');
 console.log('URI:', uri.replace(/:[^:@]*@/, ':***@')); // Hide password in logs

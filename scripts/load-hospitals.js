@@ -2,6 +2,7 @@
  * Load Seoul Hospital CSV Data directly to MongoDB
  */
 
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const fs = require('fs');
 const Papa = require('papaparse');
@@ -9,8 +10,13 @@ const path = require('path');
 
 async function loadHospitals() {
   try {
-    // Connect to MongoDB
-    const mongoUri = 'mongodb+srv://wonseok9706_db_user:1EY0d2oKTCn2o5tp@pettoyou.uq2lrlf.mongodb.net/pettoyou?appName=pettoyou';
+    // Connect to MongoDB using environment variable
+    const mongoUri = process.env.MONGODB_URI;
+
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI is not defined in .env file');
+    }
+
     await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB');
 

@@ -2,6 +2,7 @@
  * Reload hospitals to MongoDB with correct coordinates using updated parser
  */
 
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const fs = require('fs');
 const Papa = require('papaparse');
@@ -14,7 +15,13 @@ proj4.defs('EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs');
 
 async function reload() {
   try {
-    await mongoose.connect('mongodb+srv://wonseok9706_db_user:1EY0d2oKTCn2o5tp@pettoyou.uq2lrlf.mongodb.net/pettoyou');
+    const mongoUri = process.env.MONGODB_URI;
+
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI is not defined in .env file');
+    }
+
+    await mongoose.connect(mongoUri);
     console.log('✅ MongoDB connected');
 
     const csv = fs.readFileSync(path.join(__dirname, '../data/서울동물병원데이터.csv'), 'utf-8');
