@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Transactional Data)
+  postgres:
+    image: postgres:16-alpine
+    container_name: pettoyou-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+      POSTGRES_DB: pettoyou
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pettoyou-network
+
+  # MongoDB (Search & Analytics)
+  mongodb:
+    image: mongo:7
+    container_name: pettoyou-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: mongo_dev_password
+      MONGO_INITDB_DATABASE: pettoyou
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+      - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pettoyou-network
+
+  # Redis (Caching & Sessions)
+  redis:
+    image: redis:7-alpine
+    container_name: pettoyou-redis
+    command: redis-server --requirepass redis_dev_password --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pettoyou-network
+
+  # PgAdmin (PostgreSQL Management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pettoyou-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pettoyou.com
+      PGADMIN_DEFAULT_PASSWORD: pgadmin_dev_password
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - '5050:5050'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - pettoyou-network
+
+  # Mongo Express (MongoDB Management UI)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: pettoyou-mongo-express
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: mongo_dev_password
+      ME_CONFIG_MONGODB_URL: mongodb://admin:mongo_dev_password@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    ports:
+      - '8081:8081'
+    depends_on:
+      - mongodb
+    networks:
+      - pettoyou-network
+
+  # Redis Commander (Redis Management UI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: pettoyou-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:redis_dev_password
+    ports:
+      - '8082:8081'
+    depends_on:
+      - redis
+    networks:
+      - pettoyou-network
+
+volumes:
+  postgres_data:
+    driver: local
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  pettoyou-network:
+    driver: bridge
