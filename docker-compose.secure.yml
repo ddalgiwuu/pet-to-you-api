@@ -1,0 +1,215 @@
+version: '3.8'
+
+# 🔒 3-Tier Network Architecture for Production Security
+# Compliance: 의료법 (Medical Act) + PIPA (개인정보보호법)
+#
+# Network Zones:
+# - DMZ (10.0.1.0/24): Public-facing API, load balancer
+# - Service (10.0.2.0/24): Application logic, databases
+# - Sensitive (10.0.3.0/24): Medical data (air-gapped, no internet)
+
+networks:
+  dmz:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.0.1.0/24
+          gateway: 10.0.1.1
+
+  service:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.0.2.0/24
+          gateway: 10.0.2.1
+
+  sensitive:
+    driver: bridge
+    internal: true  # 🔒 NO external access - air-gapped
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.0.3.0/24
+          gateway: 10.0.3.1
+
+services:
+  # ============================================================
+  # DMZ ZONE - Public-Facing Services
+  # ============================================================
+
+  nginx-dmz:
+    image: nginx:alpine
+    container_name: pettoyou-nginx-dmz
+    networks:
+      dmz:
+        ipv4_address: 10.0.1.10
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api-public
+    restart: unless-stopped
+
+  api-public:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    container_name: pettoyou-api-public
+    networks:
+      dmz:
+        ipv4_address: 10.0.1.20
+      service:  # Can communicate with service zone
+        ipv4_address: 10.0.2.10
+    environment:
+      - NODE_ENV=production
+      - DB_ZONE=public
+      - PORT=3000
+    env_file:
+      - .env.production
+    restart: unless-stopped
+
+  # ============================================================
+  # SERVICE ZONE - Application & Databases
+  # ============================================================
+
+  api-service:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    container_name: pettoyou-api-service
+    networks:
+      service:
+        ipv4_address: 10.0.2.20
+    environment:
+      - NODE_ENV=production
+      - DB_ZONE=service
+      - PORT=3001
+    env_file:
+      - .env.production
+    depends_on:
+      - postgres-service
+      - mongodb-service
+      - redis
+    restart: unless-stopped
+
+  postgres-service:
+    image: postgres:16-alpine
+    container_name: pettoyou-postgres-service
+    networks:
+      service:
+        ipv4_address: 10.0.2.30
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: pettoyou_service
+    volumes:
+      - postgres_service_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  mongodb-service:
+    image: mongo:7
+    container_name: pettoyou-mongodb
+    networks:
+      service:
+        ipv4_address: 10.0.2.40
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: pettoyou-redis
+    networks:
+      service:
+        ipv4_address: 10.0.2.50
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # ============================================================
+  # SENSITIVE ZONE - Medical Data (Air-Gapped)
+  # ============================================================
+
+  api-sensitive:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    container_name: pettoyou-api-sensitive
+    networks:
+      service:  # Can communicate with service zone
+        ipv4_address: 10.0.2.60
+      sensitive:  # Primary network (no internet)
+        ipv4_address: 10.0.3.10
+    environment:
+      - NODE_ENV=production
+      - DB_ZONE=sensitive
+      - PORT=3002
+      - REQUIRE_VPN=true  # 🔒 VPN required for access
+      - REQUIRE_2FA=true  # 🔒 2FA required
+    env_file:
+      - .env.production
+    depends_on:
+      - postgres-sensitive
+    restart: unless-stopped
+
+  postgres-sensitive:
+    image: postgres:16-alpine
+    container_name: pettoyou-postgres-sensitive
+    networks:
+      sensitive:
+        ipv4_address: 10.0.3.20
+    environment:
+      POSTGRES_USER: ${DB_SENSITIVE_USER}
+      POSTGRES_PASSWORD: ${DB_SENSITIVE_PASSWORD}
+      POSTGRES_DB: pettoyou_medical
+    volumes:
+      - postgres_sensitive_data:/var/lib/postgresql/data
+      - ./docker/postgres/pg_hba_sensitive.conf:/etc/postgresql/pg_hba.conf:ro
+    restart: unless-stopped
+
+  # VPN Gateway (WireGuard) for Sensitive Zone Access
+  wireguard:
+    image: linuxserver/wireguard:latest
+    container_name: pettoyou-vpn
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    networks:
+      service:
+        ipv4_address: 10.0.2.70
+      sensitive:
+        ipv4_address: 10.0.3.30
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Seoul
+      - SERVERURL=vpn.pettoyou.com
+      - SERVERPORT=51820
+      - PEERS=5  # Number of VPN clients
+    volumes:
+      - ./infrastructure/wireguard:/config
+    ports:
+      - '51820:51820/udp'
+    restart: unless-stopped
+
+volumes:
+  postgres_service_data:
+    driver: local
+  postgres_sensitive_data:
+    driver: local
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# Health Check Script
+# Run: docker-compose -f docker-compose.secure.yml exec api-service wget -q -O- http://localhost:3001/api/v1/health
