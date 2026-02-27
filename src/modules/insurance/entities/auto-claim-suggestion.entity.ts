@@ -61,7 +61,6 @@ export class AutoClaimSuggestion {
   medicalRecord: HealthNote;
 
   @Column({ type: 'uuid' })
-  @Index()
   medicalRecordId: string;
 
   @ManyToOne(() => InsurancePolicy, { onDelete: 'CASCADE' })
@@ -69,7 +68,6 @@ export class AutoClaimSuggestion {
   policy: InsurancePolicy;
 
   @Column({ type: 'uuid' })
-  @Index()
   policyId: string;
 
   @ManyToOne(() => Pet, { onDelete: 'CASCADE' })

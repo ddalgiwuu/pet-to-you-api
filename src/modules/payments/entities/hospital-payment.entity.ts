@@ -72,7 +72,6 @@ export class HospitalPayment {
   claim: InsuranceClaim;
 
   @Column({ type: 'uuid' })
-  @Index()
   claimId: string;
 
   @Column({ type: 'uuid', nullable: true })

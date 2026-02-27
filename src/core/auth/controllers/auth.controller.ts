@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   Req,
@@ -263,6 +264,17 @@ export class AuthController {
   @ApiResponse({ status: 302, description: 'Redirect to Apple sign in page' })
   appleLogin() {
     // Passport will handle the redirect to Apple
+  }
+
+  @Patch('device-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '디바이스 토큰 업데이트' })
+  async updateDeviceToken(
+    @CurrentUser() user: any,
+    @Body() dto: { deviceToken: string },
+  ): Promise<void> {
+    return this.authService.updateDeviceToken(user.id, dto.deviceToken);
   }
 
   @Public()

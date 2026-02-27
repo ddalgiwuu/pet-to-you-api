@@ -69,7 +69,6 @@ export enum AuditAction {
 @Entity('audit_logs')
 @Index(['userId', 'timestamp'])
 @Index(['resource', 'resourceId', 'timestamp'])
-@Index(['timestamp'])
 export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;

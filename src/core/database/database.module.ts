@@ -62,6 +62,9 @@ import { NotificationTemplate } from '../../modules/notifications/entities/notif
 import { SecurityIncident } from '../../modules/compliance/entities/security-incident.entity';
 import { DataRetentionLog } from '../../modules/compliance/entities/data-retention-log.entity';
 
+// Audit Module
+import { AuditLog } from '../audit/entities/audit-log.entity';
+
 @Global()
 @Module({
   imports: [
@@ -118,9 +121,11 @@ import { DataRetentionLog } from '../../modules/compliance/entities/data-retenti
           // Compliance
           SecurityIncident,
           DataRetentionLog,
+          // Audit
+          AuditLog,
         ],
         migrations: [__dirname + '/../../database/migrations/*{.ts,.js}'],
-        synchronize: false, // ⚠️ Disabled due to TypeORM index bug - use manual migration
+        synchronize: true, // ⚠️ Temporarily enabled for local dev schema creation
         migrationsRun: false,
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('NODE_ENV') === 'production' ? {

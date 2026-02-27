@@ -138,6 +138,18 @@ export class User {
   @Column({ type: 'uuid', nullable: true })
   hospitalId?: string; // For hospital staff/admin users
 
+  @Column({ type: 'uuid', nullable: true })
+  businessId?: string; // For daycare/shelter/grooming admin users
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  businessType?: string; // 'daycare', 'shelter', 'grooming_salon'
+
+  @Column({ nullable: true })
+  deviceToken: string;
+
+  @Column({ nullable: true })
+  deviceTokenUpdatedAt: Date;
+
   // ============================================================
   // Consent & Privacy (PIPA Compliance)
   // ============================================================

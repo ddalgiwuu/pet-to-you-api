@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BookingsController } from './controllers/bookings.controller';
 import { BookingsService } from './services/bookings.service';
 import { SlotCalculatorService } from './services/slot-calculator.service';
@@ -15,6 +16,7 @@ import { AuditModule } from '../../core/audit/audit.module';
     TypeOrmModule.forFeature([Booking, Hospital, User, Pet]),
     CacheModule,
     AuditModule,
+    EventEmitterModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService, SlotCalculatorService],

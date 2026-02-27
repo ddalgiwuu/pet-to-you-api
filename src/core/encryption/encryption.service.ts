@@ -156,7 +156,7 @@ export class EncryptionService {
    */
   async hashPassword(password: string): Promise<string> {
     const bcrypt = await import('bcrypt');
-    const rounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
+    const rounds = parseInt(this.configService.get('BCRYPT_ROUNDS', '12'), 10);
     return bcrypt.hash(password, rounds);
   }
 

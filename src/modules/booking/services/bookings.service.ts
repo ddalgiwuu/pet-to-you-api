@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Booking, BookingStatus, PaymentStatus } from '../entities/booking.entity';
 import { Hospital } from '../../hospitals/entities/hospital.entity';
 import { User } from '../../users/entities/user.entity';
@@ -38,6 +39,7 @@ export class BookingsService {
     private cacheService: CacheService,
     private auditService: AuditService,
     private slotCalculatorService: SlotCalculatorService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -321,7 +323,12 @@ export class BookingsService {
 
     const updated = await this.bookingRepository.save(booking);
 
-    // TODO: Send confirmation notification to user
+    this.eventEmitter.emit('booking.confirmed', {
+      bookingId: updated.id,
+      bookingNumber: updated.bookingNumber,
+      userId: updated.userId,
+      deviceToken: updated.user?.deviceToken,
+    });
 
     // Audit log
     await this.auditService.log({
@@ -341,6 +348,32 @@ export class BookingsService {
 
     this.logger.log(`Booking confirmed: ${booking.bookingNumber} by staff ${staffUserId}`);
 
+    return updated;
+  }
+
+  /**
+   * ❌ Reject booking (hospital staff only)
+   * PENDING → CANCELLED with reason
+   */
+  async reject(id: string, staffUserId: string, reason: string): Promise<Booking> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id, isDeleted: false },
+      relations: ['hospital', 'pet', 'user'],
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException('Only pending bookings can be rejected');
+    }
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancellationReason = reason;
+    const updated = await this.bookingRepository.save(booking);
+    this.eventEmitter.emit('booking.cancelled', {
+      bookingId: updated.id,
+      bookingNumber: updated.bookingNumber,
+      userId: updated.userId,
+      deviceToken: updated.user?.deviceToken,
+      reason,
+    });
     return updated;
   }
 

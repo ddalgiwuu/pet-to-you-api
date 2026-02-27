@@ -32,14 +32,19 @@ import { AuthController } from './controllers/auth.controller';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        // JWT configuration is handled in strategies with RS256
-        secret: configService.get<string>('JWT_SECRET', 'fallback-secret'),
-        signOptions: {
-          algorithm: 'RS256',
-          expiresIn: '15m', // Access token TTL
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const fs = require('fs');
+        const path = require('path');
+        const privateKey = fs.readFileSync(path.join(process.cwd(), 'keys', 'jwt.key'), 'utf8');
+        return {
+          privateKey,
+          publicKey: fs.readFileSync(path.join(process.cwd(), 'keys', 'jwt.key.pub'), 'utf8'),
+          signOptions: {
+            algorithm: 'RS256' as const,
+            expiresIn: '15m',
+          },
+        };
+      },
     }),
 
     // Database

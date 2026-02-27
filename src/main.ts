@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
@@ -93,6 +94,70 @@ async function bootstrap() {
 
   // 🌐 API Prefix
   app.setGlobalPrefix(apiPrefix);
+
+  // 📚 Swagger/OpenAPI Documentation
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Pet to You API')
+    .setDescription(
+      'RESTful API for Pet to You - Hospital and Business Dashboard Platform\n\n' +
+        '## Features\n' +
+        '- 🏥 Hospital Dashboard: Statistics, pets, appointments, revenue, reviews\n' +
+        '- 🏢 Business Dashboard: Services, bookings, customers, capacity tracking\n' +
+        '- 🔒 Security: JWT authentication, RBAC, multi-tenant isolation\n' +
+        '- ⚡ Performance: Redis caching, MongoDB aggregations, pagination\n\n' +
+        '## Authentication\n' +
+        'Use JWT Bearer tokens obtained from /api/v1/auth/login endpoint.\n\n' +
+        '## Rate Limiting\n' +
+        '100 requests per 15 minutes per IP address.',
+    )
+    .setVersion('1.0')
+    .setContact(
+      'Pet to You Team',
+      'https://pet-to-you.com',
+      'support@pet-to-you.com',
+    )
+    .setLicense('MIT', 'https://opensource.org/licenses/MIT')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .addTag('Hospital Dashboard', 'Hospital statistics, pets, appointments, revenue')
+    .addTag('Business Dashboard', 'Business services, bookings, customers, revenue')
+    .addTag('Authentication', 'User authentication and authorization')
+    .addTag('Pets', 'Pet registration and management')
+    .addTag('Bookings', 'Appointment and service bookings')
+    .addServer(`http://localhost:${port}/${apiPrefix}`, 'Development server')
+    .addServer('https://api.pet-to-you.com/api', 'Production server')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig, {
+    operationIdFactory: (controllerKey: string, methodKey: string) =>
+      `${controllerKey}_${methodKey}`,
+  });
+
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+      docExpansion: 'none',
+      filter: true,
+      showRequestDuration: true,
+    },
+    customCss: `
+      .swagger-ui .topbar { display: none }
+      .swagger-ui .info { margin: 20px 0 }
+      .swagger-ui .scheme-container { margin: 20px 0; padding: 15px; background: #fafafa; border-radius: 4px }
+    `,
+    customSiteTitle: 'Pet to You API Documentation',
+  });
 
   // 🚦 Graceful Shutdown
   app.enableShutdownHooks();

@@ -19,10 +19,16 @@ import { CreateBookingDto } from '../dto/create-booking.dto';
 import { UpdateBookingDto } from '../dto/update-booking.dto';
 import { GetAvailableSlotsDto, AvailableSlotDto } from '../dto/get-available-slots.dto';
 import { BookingFilterDto } from '../dto/booking-filter.dto';
+import { RejectBookingDto } from '../dto/reject-booking.dto';
 import { Booking } from '../entities/booking.entity';
+import { JwtAuthGuard } from '../../../core/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../core/auth/guards/roles.guard';
+import { Roles } from '../../../core/auth/decorators/roles.decorator';
+import { CurrentUser } from '../../../core/auth/decorators/current-user.decorator';
+import { UserRole } from '../../users/entities/user.entity';
 
 /**
- * 📅 Booking Management Controller
+ * Booking Management Controller
  *
  * Endpoints:
  * - POST   /bookings                    - Create new booking (user)
@@ -31,6 +37,7 @@ import { Booking } from '../entities/booking.entity';
  * - PATCH  /bookings/:id/cancel         - Cancel booking
  * - GET    /bookings/slots/available    - Get available time slots
  * - PATCH  /bookings/:id/confirm        - Confirm booking (hospital staff only)
+ * - PATCH  /bookings/:id/reject         - Reject booking (hospital staff only)
  */
 @ApiTags('bookings')
 @Controller('bookings')
@@ -41,7 +48,7 @@ export class BookingsController {
   ) {}
 
   /**
-   * 📝 Create new booking with distributed locking
+   * Create new booking with distributed locking
    *
    * @access Authenticated user
    * @features - Distributed locking to prevent double-booking
@@ -66,7 +73,7 @@ export class BookingsController {
    */
   @Post()
   @ApiBearerAuth()
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '예약 생성' })
   @ApiResponse({
     status: 201,
@@ -76,13 +83,12 @@ export class BookingsController {
   @ApiResponse({ status: 400, description: 'Invalid booking time or operating hours' })
   @ApiResponse({ status: 404, description: 'Hospital or pet not found' })
   @ApiResponse({ status: 409, description: 'Time slot already booked or currently being booked' })
-  async create(@Body() createDto: CreateBookingDto, @Req() req: any): Promise<Booking> {
-    const userId = req.user?.id || 'test-user-id'; // TODO: Extract from JWT
-    return this.bookingsService.create(createDto, userId);
+  async create(@Body() createDto: CreateBookingDto, @CurrentUser() user: any): Promise<Booking> {
+    return this.bookingsService.create(createDto, user.id);
   }
 
   /**
-   * 📋 Get user's bookings with filters and pagination
+   * Get user's bookings with filters and pagination
    *
    * @access Authenticated user
    * @features - Filtering by status, type, payment status, hospital, pet, date range
@@ -95,7 +101,7 @@ export class BookingsController {
    */
   @Get()
   @ApiBearerAuth()
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '예약 목록 조회 (필터 및 페이지네이션)' })
   @ApiResponse({
     status: 200,
@@ -112,7 +118,7 @@ export class BookingsController {
   })
   async findAll(
     @Query() filters: BookingFilterDto,
-    @Req() req: any,
+    @CurrentUser() user: any,
   ): Promise<{
     bookings: Booking[];
     total: number;
@@ -120,12 +126,11 @@ export class BookingsController {
     limit: number;
     totalPages: number;
   }> {
-    const userId = req.user?.id || 'test-user-id'; // TODO: Extract from JWT
-    return this.bookingsService.findAll(userId, filters);
+    return this.bookingsService.findAll(user.id, filters);
   }
 
   /**
-   * 🕐 Get available time slots for a hospital on a specific date
+   * Get available time slots for a hospital on a specific date
    *
    * @access Public
    * @features - Redis caching (5-minute TTL)
@@ -156,7 +161,7 @@ export class BookingsController {
   }
 
   /**
-   * 🔍 Get booking details
+   * Get booking details
    *
    * @access Authenticated user (owner only)
    * @features - Relations (hospital, pet) included
@@ -166,7 +171,7 @@ export class BookingsController {
    */
   @Get(':id')
   @ApiBearerAuth()
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '예약 상세 조회' })
   @ApiResponse({
     status: 200,
@@ -174,13 +179,12 @@ export class BookingsController {
     type: Booking,
   })
   @ApiResponse({ status: 404, description: 'Booking not found' })
-  async findOne(@Param('id') id: string, @Req() req: any): Promise<Booking> {
-    const userId = req.user?.id || 'test-user-id'; // TODO: Extract from JWT
-    return this.bookingsService.findOne(id, userId);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any): Promise<Booking> {
+    return this.bookingsService.findOne(id, user.id);
   }
 
   /**
-   * ❌ Cancel booking with automatic refund calculation
+   * Cancel booking with automatic refund calculation
    *
    * @access Authenticated user (owner only)
    * @features - Cancellation time validation (2 hours before)
@@ -194,7 +198,7 @@ export class BookingsController {
    */
   @Patch(':id/cancel')
   @ApiBearerAuth()
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: '예약 취소' })
   @ApiResponse({
     status: 200,
@@ -206,14 +210,13 @@ export class BookingsController {
   async cancel(
     @Param('id') id: string,
     @Body('reason') reason: string,
-    @Req() req: any,
+    @CurrentUser() user: any,
   ): Promise<Booking> {
-    const userId = req.user?.id || 'test-user-id'; // TODO: Extract from JWT
-    return this.bookingsService.cancel(id, userId, reason);
+    return this.bookingsService.cancel(id, user.id, reason);
   }
 
   /**
-   * ✅ Confirm booking (hospital staff only)
+   * Confirm booking (hospital staff only)
    *
    * @access Hospital staff only (HOSPITAL_ADMIN, HOSPITAL_STAFF)
    * @features - Status transition: pending → confirmed
@@ -225,8 +228,8 @@ export class BookingsController {
    */
   @Patch(':id/confirm')
   @ApiBearerAuth()
-  // @UseGuards(JwtAuthGuard, RolesGuard)
-  // @Roles(UserRole.HOSPITAL_ADMIN, UserRole.HOSPITAL_STAFF)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HOSPITAL_ADMIN, UserRole.HOSPITAL_STAFF)
   @ApiOperation({ summary: '예약 확정 (병원 스태프 전용)' })
   @ApiResponse({
     status: 200,
@@ -235,8 +238,26 @@ export class BookingsController {
   })
   @ApiResponse({ status: 400, description: 'Only pending bookings can be confirmed' })
   @ApiResponse({ status: 404, description: 'Booking not found' })
-  async confirm(@Param('id') id: string, @Req() req: any): Promise<Booking> {
-    const staffUserId = req.user?.id || 'test-staff-id'; // TODO: Extract from JWT
-    return this.bookingsService.confirm(id, staffUserId);
+  async confirm(@Param('id') id: string, @CurrentUser() user: any): Promise<Booking> {
+    return this.bookingsService.confirm(id, user.id);
+  }
+
+  /**
+   * Reject booking (hospital staff only)
+   */
+  @Patch(':id/reject')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.HOSPITAL_ADMIN, UserRole.HOSPITAL_STAFF)
+  @ApiOperation({ summary: '예약 거절 (병원 스태프 전용)' })
+  @ApiResponse({ status: 200, description: 'Booking rejected successfully', type: Booking })
+  @ApiResponse({ status: 400, description: 'Only pending bookings can be rejected' })
+  @ApiResponse({ status: 404, description: 'Booking not found' })
+  async reject(
+    @Param('id') id: string,
+    @Body() dto: RejectBookingDto,
+    @CurrentUser() user: any,
+  ): Promise<Booking> {
+    return this.bookingsService.reject(id, user.id, dto.reason);
   }
 }

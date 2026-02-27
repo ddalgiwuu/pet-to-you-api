@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MongooseModule } from '@nestjs/mongoose';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -29,6 +30,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { BffModule } from './modules/bff/bff.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -82,8 +84,15 @@ import { BffModule } from './modules/bff/bff.module';
     ComplianceModule,
     AnalyticsModule,
     BffModule,
+    DashboardModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    // 🔒 Global Rate Limiting Guard - activates ThrottlerModule for all routes
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

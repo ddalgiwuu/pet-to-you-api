@@ -487,6 +487,19 @@ export class AuthService {
   }
 
   /**
+   * 📱 Update device token for push notifications
+   *
+   * @param userId - User ID
+   * @param deviceToken - FCM/APNs device token
+   */
+  async updateDeviceToken(userId: string, deviceToken: string): Promise<void> {
+    await this.userRepository.update(userId, {
+      deviceToken,
+      deviceTokenUpdatedAt: new Date(),
+    });
+  }
+
+  /**
    * 🔐 Generate JWT token pair (access + refresh)
    */
   private async generateTokens(user: User): Promise<TokenPair> {

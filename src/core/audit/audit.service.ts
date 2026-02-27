@@ -202,9 +202,11 @@ export class AuditService {
    * 🔒 Private helper to get latest log entry
    */
   private async getLatestLog(): Promise<AuditLog | null> {
-    return this.auditRepository.findOne({
+    const results = await this.auditRepository.find({
       order: { timestamp: 'DESC' },
+      take: 1,
     });
+    return results[0] || null;
   }
 
   /**
